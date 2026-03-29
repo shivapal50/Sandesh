@@ -259,7 +259,7 @@ textarea { resize: vertical; min-height: 120px; line-height: 1.7; }
       <div class="brand-icon">📨</div>
       <div class="brand-text">
         <h1>San<span>desh</span></h1>
-        <p>Political Campaign Broadcaster</p>
+        <p>Political Campaign SMS Broadcaster</p>
       </div>
     </div>
     <div class="header-right">
@@ -363,12 +363,12 @@ textarea { resize: vertical; min-height: 120px; line-height: 1.7; }
             <div class="char-count" id="char-count">0 characters</div>
           </div>
           <div class="field" style="margin-bottom:0">
-            <label>Live Preview</label>
-            <div class="bubble-wrap">
-              <div class="bubble" id="msg-preview">Aapka message yahan dikhega...</div>
+            <label>Live Preview (SMS)</label>
+            <div class="bubble-wrap" style="background:#e0e0e0">
+              <div class="bubble" id="msg-preview" style="background:#fff;border-radius:12px 12px 12px 2px;color:#111">Aapka message yahan dikhega...</div>
               <div class="bubble-tail">
                 <span id="preview-time">12:00 PM</span>
-                <span style="color:var(--wa);font-size:13px">✓✓</span>
+                <span style="color:#888;font-size:11px">SMS</span>
               </div>
             </div>
           </div>
@@ -387,7 +387,7 @@ textarea { resize: vertical; min-height: 120px; line-height: 1.7; }
             </select>
           </div>
           <div class="hint">
-            💡 WhatsApp pre-filled message ke saath khulega. Message bhejo phir <strong>Next →</strong> dabao — agle contact par jaao!
+            💡 Phone ka SMS app khulega pre-filled message ke saath. Message bhejo phir <strong>Next →</strong> dabao — agle contact par jaao!
           </div>
 
           <!-- Start button -->
@@ -731,9 +731,9 @@ function openCurrentContact() {
   contacts[c._idx].status = 'sending';
   renderContacts();
 
-  // Open WhatsApp
+  // Open SMS
   const personalMsg = sendMsg.replace(/\{name\}/g, c.name).replace(/\{ward\}/g, c.ward || '');
-  window.open(`https://wa.me/${c.phone}?text=${encodeURIComponent(personalMsg)}`, '_blank');
+  window.open(`sms:+${c.phone}?body=${encodeURIComponent(personalMsg)}`, '_self');
 }
 
 function nextContact() {
