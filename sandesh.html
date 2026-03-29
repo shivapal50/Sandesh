@@ -387,15 +387,43 @@ textarea { resize: vertical; min-height: 120px; line-height: 1.7; }
             </select>
           </div>
           <div class="hint">
-            💡 Selected ward ke voters ka WhatsApp open hoga pre-filled message ke saath. Bas <strong>Send</strong> dabao — bilkul free!
+            💡 WhatsApp pre-filled message ke saath khulega. Message bhejo phir <strong>Next →</strong> dabao — agle contact par jaao!
           </div>
+
+          <!-- Start button -->
           <button class="btn btn-green btn-full" id="send-btn" onclick="startSending()">
-            Send to All Contacts →
+            🚀 Sending Shuru Karo
           </button>
-          <div class="progress-wrap" id="progress-wrap">
-            <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
-            <div class="progress-text" id="progress-text"></div>
+
+          <!-- Sending mode UI -->
+          <div id="sending-ui" style="display:none">
+            <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px;">
+              <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Ab Bhej Rahe Ho</div>
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div class="avatar" id="current-avatar">?</div>
+                <div>
+                  <div style="font-size:14px;font-weight:700;color:var(--ink)" id="current-name">—</div>
+                  <div style="font-size:12px;color:var(--muted)" id="current-info">—</div>
+                </div>
+                <span class="badge badge-sending" style="margin-left:auto">Sending...</span>
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+              <button class="btn btn-green btn-full" id="next-btn" onclick="nextContact()" style="font-size:13px;padding:12px">
+                Next → <span id="next-count"></span>
+              </button>
+              <button class="btn btn-danger btn-full" onclick="stopSending()" style="font-size:13px;padding:12px">
+                ⏹ Rok Do
+              </button>
+            </div>
+
+            <div class="progress-wrap" style="display:block">
+              <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+              <div class="progress-text" id="progress-text"></div>
+            </div>
           </div>
+
         </div>
       </div>
 
@@ -660,37 +688,92 @@ function showSampleFormat() {
   alert('Excel/CSV ka format:\n\nColumn A → Naam    (e.g. Ram Kumar)\nColumn B → Phone   (e.g. 9876543210)\nColumn C → Ward    (e.g. Ward 12)\n\nPehli row header ho sakti hai — auto skip ho jaayegi.\nWards automatically create ho jaayenge!');
 }
 
-// SEND
-async function startSending() {
+// SEND — Next button flow
+let sendTargets = [];
+let sendIndex = 0;
+let sendMsg = '';
+
+function startSending() {
   const msg = document.getElementById('msg-input').value.trim();
   if (!msg) return showToast('⚠️ Pehle message likho!');
   const wardFilter = document.getElementById('send-ward-filter').value;
-  const targets = contacts.filter(c => c.status !== 'sent' && (wardFilter === 'all' || c.ward === wardFilter));
+  const targets = contacts
+    .map((c, i) => ({ ...c, _idx: i }))
+    .filter(c => c.status !== 'sent' && (wardFilter === 'all' || c.ward === wardFilter));
   if (!targets.length) return showToast('✅ Is selection ke sabko bhej diya!');
 
-  const btn = document.getElementById('send-btn');
-  const wrap = document.getElementById('progress-wrap');
-  const fill = document.getElementById('progress-fill');
-  const ptext = document.getElementById('progress-text');
-  btn.disabled = true; wrap.style.display = 'block';
-  let done = 0;
+  sendTargets = targets;
+  sendIndex = 0;
+  sendMsg = msg;
 
-  for (let i = 0; i < contacts.length; i++) {
-    const c = contacts[i];
-    if (c.status === 'sent') continue;
-    if (wardFilter !== 'all' && c.ward !== wardFilter) continue;
-    contacts[i].status = 'sending'; renderContacts();
-    const personalMsg = msg.replace(/\{name\}/g, c.name).replace(/\{ward\}/g, c.ward || '');
-    window.open(`https://wa.me/${c.phone}?text=${encodeURIComponent(personalMsg)}`, '_blank');
-    await new Promise(r => setTimeout(r, 1200));
-    contacts[i].status = 'sent'; done++;
-    fill.style.width = (done / targets.length * 100) + '%';
-    ptext.textContent = `${done} / ${targets.length} bheje gaye`;
-    saveContacts();
-    if (done < targets.length) await new Promise(r => setTimeout(r, 1500));
+  document.getElementById('send-btn').style.display = 'none';
+  document.getElementById('sending-ui').style.display = 'block';
+
+  openCurrentContact();
+}
+
+function openCurrentContact() {
+  if (sendIndex >= sendTargets.length) return finishSending();
+
+  const c = sendTargets[sendIndex];
+  const total = sendTargets.length;
+  const done = sendIndex;
+
+  // Update UI
+  document.getElementById('current-avatar').textContent = c.name.charAt(0).toUpperCase();
+  document.getElementById('current-name').textContent = c.name;
+  document.getElementById('current-info').textContent = `+${c.phone}  •  ${c.ward || 'General'}`;
+  document.getElementById('next-count').textContent = `(${done + 1}/${total})`;
+  document.getElementById('progress-fill').style.width = (done / total * 100) + '%';
+  document.getElementById('progress-text').textContent = `${done} / ${total} bheje gaye`;
+
+  // Mark as sending
+  contacts[c._idx].status = 'sending';
+  renderContacts();
+
+  // Open WhatsApp
+  const personalMsg = sendMsg.replace(/\{name\}/g, c.name).replace(/\{ward\}/g, c.ward || '');
+  window.open(`https://wa.me/${c.phone}?text=${encodeURIComponent(personalMsg)}`, '_blank');
+}
+
+function nextContact() {
+  const c = sendTargets[sendIndex];
+  // Mark current as sent
+  contacts[c._idx].status = 'sent';
+  saveContacts();
+  sendIndex++;
+
+  const total = sendTargets.length;
+  document.getElementById('progress-fill').style.width = (sendIndex / total * 100) + '%';
+  document.getElementById('progress-text').textContent = `${sendIndex} / ${total} bheje gaye`;
+
+  if (sendIndex >= sendTargets.length) {
+    finishSending();
+  } else {
+    openCurrentContact();
   }
-  btn.disabled = false;
-  showToast(`🎉 ${done} voters ko Sandesh bhej diya!`);
+}
+
+function stopSending() {
+  // Mark remaining as pending
+  for (let i = sendIndex; i < sendTargets.length; i++) {
+    contacts[sendTargets[i]._idx].status = 'pending';
+  }
+  saveContacts();
+  resetSendUI();
+  showToast(`⏹ Ruk gaye — ${sendIndex} bheje gaye`);
+}
+
+function finishSending() {
+  resetSendUI();
+  showToast(`🎉 Sab ${sendTargets.length} voters ko Sandesh bhej diya!`);
+}
+
+function resetSendUI() {
+  document.getElementById('send-btn').style.display = 'block';
+  document.getElementById('sending-ui').style.display = 'none';
+  sendTargets = []; sendIndex = 0; sendMsg = '';
+  renderContacts();
 }
 
 function showToast(msg) {
