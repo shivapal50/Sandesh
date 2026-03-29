@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sandesh — Political Campaign Tool</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --wa: #25D366;
+  --wa-deep: #075E54;
+  --wa-light: #DCF8C6;
+  --bg: #f7f5f0;
+  --white: #ffffff;
+  --ink: #1a1a1a;
+  --ink2: #444;
+  --muted: #999;
+  --border: #e8e4dc;
+  --shadow: 0 2px 20px rgba(0,0,0,0.07);
+  --radius: 18px;
+}
+
+html { scroll-behavior: smooth; }
+
+html.dark {
+  --bg: #0f0f0f;
+  --white: #181818;
+  --ink: #f0f0f0;
+  --ink2: #ccc;
+  --muted: #555;
+  --border: #252525;
+  --shadow: 0 2px 20px rgba(0,0,0,0.4);
+  --wa-light: #1a2e1a;
+}
+
+html.dark .bubble-wrap { background: #111; }
+html.dark .bubble { background: #1e3a1e; color: #e0e0e0; }
+html.dark input, html.dark textarea, html.dark select { background: #111 !important; color: #f0f0f0 !important; border-color: #252525 !important; }
+html.dark input:focus, html.dark textarea:focus, html.dark select:focus { background: #181818 !important; }
+html.dark .contact-item { background: #1e1e1e; }
+html.dark .contact-item:hover { background: #252525; }
+html.dark .upload-zone { background: #111; border-color: #252525; }
+html.dark .chip { background: #181818; color: #888; border-color: #252525; }
+html.dark .chip:hover { color: var(--wa); border-color: var(--wa); background: rgba(37,211,102,0.06); }
+html.dark .hint { background: #181818; border-color: #252525; }
+html.dark .badge-pending { background: #222; color: #555; border-color: #333; }
+html.dark .stat-card, html.dark .panel { background: #181818; }
+html.dark .btn-outline { background: #181818; color: #aaa; border-color: #252525; }
+html.dark .btn-outline:hover { color: var(--wa); border-color: var(--wa); }
+html.dark .ward-tab { background: #181818; border-color: #252525; color: #888; }
+html.dark .ward-tab.active { background: var(--wa-deep); color: #fff; border-color: var(--wa-deep); }
+html.dark .ward-tab:hover:not(.active) { border-color: var(--wa); color: var(--wa); }
+html.dark .section-divider { border-color: #252525; }
+html.dark .toast { background: #eee; color: #111; }
+html.dark .modal-box { background: #181818; border-color: #252525; }
+html.dark .group-header { background: #111; }
+html.dark .btn-danger { border-color: #3a1a1a; color: #e74c3c; }
+html.dark .btn-danger:hover { background: #2a1111; }
+html.dark .ward-pill { background: rgba(37,211,102,0.12); }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.02'/%3E%3C/svg%3E");
+  pointer-events: none; z-index: 0;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  width: 700px; height: 700px;
+  background: radial-gradient(circle, rgba(37,211,102,0.06) 0%, transparent 70%);
+  top: -300px; right: -300px;
+  border-radius: 50%;
+  pointer-events: none; z-index: 0;
+}
+
+.app {
+  position: relative; z-index: 1;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 32px 24px 64px;
+}
+
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 28px;
+}
+
+.brand { display: flex; align-items: center; gap: 14px; }
+
+.brand-icon {
+  width: 50px; height: 50px;
+  background: linear-gradient(135deg, var(--wa-deep), var(--wa));
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px;
+  box-shadow: 0 4px 16px rgba(37,211,102,0.3);
+}
+
+.brand-text h1 { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 900; letter-spacing: -0.5px; line-height: 1; color: var(--ink); }
+.brand-text h1 span { color: var(--wa-deep); }
+.brand-text p { font-size: 10px; font-weight: 600; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-top: 3px; }
+
+.header-right { display: flex; align-items: center; gap: 10px; }
+
+.theme-toggle { width: 46px; height: 25px; background: var(--border); border-radius: 30px; position: relative; cursor: pointer; border: none; transition: background 0.3s; flex-shrink: 0; }
+.theme-toggle.dark-on { background: var(--wa-deep); }
+.theme-toggle::after { content: '☀️'; position: absolute; top: 2px; left: 2px; width: 21px; height: 21px; border-radius: 50%; background: white; transition: transform 0.3s; display: flex; align-items: center; justify-content: center; font-size: 11px; line-height: 21px; text-align: center; }
+.theme-toggle.dark-on::after { content: '🌙'; transform: translateX(21px); }
+.toggle-label { font-size: 12px; font-weight: 600; color: var(--muted); }
+
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+
+.stat-card { background: var(--white); border: 1px solid var(--border); border-radius: 14px; padding: 16px 12px; text-align: center; box-shadow: var(--shadow); transition: transform 0.2s; }
+.stat-card:hover { transform: translateY(-2px); }
+.stat-icon { font-size: 22px; margin-bottom: 4px; }
+.stat-num { font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 900; color: var(--wa-deep); line-height: 1; }
+.stat-label { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; margin-top: 4px; }
+
+.main { display: grid; grid-template-columns: 1.1fr 1fr; gap: 20px; align-items: start; }
+
+.panel { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+
+.panel-head { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+
+.panel-title { font-family: 'Playfair Display', serif; font-size: 16px; font-weight: 700; color: var(--ink); display: flex; align-items: center; gap: 7px; }
+
+.panel-body { padding: 18px 20px; }
+
+.ward-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+
+.ward-tab { padding: 5px 13px; border-radius: 20px; border: 1.5px solid var(--border); background: var(--bg); color: var(--ink2); font-family: 'Plus Jakarta Sans', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+.ward-tab:hover:not(.active) { border-color: var(--wa); color: var(--wa-deep); }
+.ward-tab.active { background: var(--wa-deep); color: #fff; border-color: var(--wa-deep); }
+.ward-tab .count { display: inline-flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.25); border-radius: 10px; padding: 0 5px; font-size: 10px; margin-left: 4px; min-width: 18px; }
+.ward-tab:not(.active) .count { background: var(--border); color: var(--muted); }
+
+label { display: block; font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px; }
+
+input, textarea, select { width: 100%; border: 1.5px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--ink); font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px; padding: 10px 13px; outline: none; transition: border-color 0.2s, box-shadow 0.2s, background 0.2s; }
+input:focus, textarea:focus, select:focus { border-color: var(--wa); background: var(--white); box-shadow: 0 0 0 3px rgba(37,211,102,0.1); }
+select { cursor: pointer; }
+textarea { resize: vertical; min-height: 120px; line-height: 1.7; }
+
+.field { margin-bottom: 13px; }
+.row3 { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 8px; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 16px; border-radius: 10px; border: none; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 12px; font-weight: 700; transition: all 0.2s; white-space: nowrap; }
+.btn-green { background: linear-gradient(135deg, var(--wa-deep), var(--wa)); color: #fff; box-shadow: 0 3px 12px rgba(37,211,102,0.3); }
+.btn-green:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(37,211,102,0.4); }
+.btn-outline { background: transparent; border: 1.5px solid var(--border); color: var(--ink2); }
+.btn-outline:hover { border-color: var(--wa); color: var(--wa-deep); background: rgba(37,211,102,0.04); }
+.btn-danger { background: transparent; border: 1.5px solid #fde8e8; color: #e74c3c; }
+.btn-danger:hover { background: #fde8e8; }
+.btn-full { width: 100%; padding: 14px; font-size: 14px; border-radius: 12px; font-family: 'Playfair Display', serif; font-weight: 700; letter-spacing: 0.3px; }
+.btn-full:disabled { opacity: 0.45; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+
+.upload-zone { border: 2px dashed var(--border); border-radius: 12px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.2s; background: var(--bg); margin-bottom: 10px; }
+.upload-zone:hover, .upload-zone.drag-over { border-color: var(--wa); background: rgba(37,211,102,0.04); }
+.upload-zone .u-icon { font-size: 22px; margin-bottom: 4px; }
+.upload-zone p { font-size: 12px; color: var(--muted); line-height: 1.5; }
+.upload-zone strong { color: var(--wa-deep); }
+.upload-zone .fmt { font-size: 10px; opacity: 0.65; margin-top: 3px; }
+#csv-input, #excel-input { display: none; }
+
+.contact-scroll { max-height: 340px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent; margin: 0 -20px; padding: 0 20px; }
+
+.group-header { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: var(--bg); border-radius: 8px; margin-bottom: 6px; margin-top: 10px; font-size: 11px; font-weight: 700; color: var(--wa-deep); text-transform: uppercase; letter-spacing: 1px; }
+.group-header:first-child { margin-top: 0; }
+.group-header .g-count { background: var(--wa-deep); color: #fff; border-radius: 10px; padding: 1px 7px; font-size: 10px; }
+
+.contact-item { display: flex; align-items: center; gap: 10px; padding: 9px 11px; border-radius: 10px; margin-bottom: 5px; background: var(--bg); border: 1px solid transparent; transition: all 0.15s; }
+.contact-item:hover { border-color: var(--border); }
+
+.avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, var(--wa-deep), var(--wa)); color: #fff; display: flex; align-items: center; justify-content: center; font-family: 'Playfair Display', serif; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+
+.c-info { flex: 1; min-width: 0; }
+.c-name { font-size: 13px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.c-sub { font-size: 10px; color: var(--muted); margin-top: 1px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.ward-pill { background: rgba(7,94,84,0.1); color: var(--wa-deep); padding: 1px 7px; border-radius: 8px; font-size: 10px; font-weight: 700; }
+
+.badge { font-size: 9px; font-weight: 700; padding: 3px 8px; border-radius: 20px; letter-spacing: 0.5px; text-transform: uppercase; flex-shrink: 0; }
+.badge-pending { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
+.badge-sending { background: #fff8e1; color: #e67e22; }
+.badge-sent { background: #e6f9ee; color: var(--wa-deep); }
+
+.del-btn { background: none; border: none; color: #ccc; cursor: pointer; font-size: 16px; padding: 3px 5px; border-radius: 5px; transition: all 0.15s; flex-shrink: 0; line-height: 1; }
+.del-btn:hover { color: #e74c3c; background: #fff0f0; }
+
+.empty-state { text-align: center; padding: 32px 20px; color: var(--muted); }
+.empty-state .e-icon { font-size: 36px; margin-bottom: 8px; opacity: 0.4; }
+.empty-state p { font-size: 12px; line-height: 1.6; }
+
+.template-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.chip { padding: 5px 12px; border-radius: 20px; border: 1.5px solid var(--border); background: var(--bg); color: var(--ink2); font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.chip:hover { border-color: var(--wa); color: var(--wa-deep); transform: translateY(-1px); }
+
+.bubble-wrap { background: #e5ddd5; border-radius: 12px; padding: 14px; position: relative; overflow: hidden; }
+.bubble { background: var(--wa-light); border-radius: 12px 12px 12px 2px; padding: 11px 14px; font-size: 13px; line-height: 1.75; color: #111; white-space: pre-wrap; word-break: break-word; box-shadow: 0 1px 3px rgba(0,0,0,0.1); max-width: 88%; }
+.bubble-tail { font-size: 10px; color: #999; text-align: right; margin-top: 5px; display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+
+.char-count { font-size: 11px; color: var(--muted); text-align: right; margin-top: 4px; font-weight: 500; }
+.char-count.warn { color: #e67e22; }
+
+.section-divider { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+
+.hint { font-size: 12px; color: var(--ink2); line-height: 1.6; background: var(--bg); border-radius: 10px; padding: 11px 14px; margin-bottom: 14px; border: 1px solid var(--border); }
+
+.progress-wrap { margin-top: 14px; display: none; }
+.progress-track { height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, var(--wa-deep), var(--wa)); width: 0%; transition: width 0.4s ease; border-radius: 3px; }
+.progress-text { font-size: 11px; color: var(--muted); font-weight: 600; text-align: center; margin-top: 7px; }
+
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 100; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal-box { background: var(--white); border: 1px solid var(--border); border-radius: 20px; padding: 28px; width: 380px; max-width: 90vw; box-shadow: 0 20px 60px rgba(0,0,0,0.15); transform: scale(0.95); transition: transform 0.2s; }
+.modal-overlay.open .modal-box { transform: scale(1); }
+.modal-title { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; margin-bottom: 16px; }
+.modal-foot { display: flex; gap: 8px; margin-top: 16px; }
+
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--ink); color: #fff; border-radius: 30px; padding: 12px 22px; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; z-index: 999; opacity: 0; transition: all 0.35s cubic-bezier(0.34,1.56,0.64,1); white-space: nowrap; box-shadow: 0 8px 30px rgba(0,0,0,0.2); }
+.toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+@media (max-width: 800px) {
+  .main { grid-template-columns: 1fr; }
+  .stats { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 500px) {
+  .app { padding: 18px 14px 50px; }
+  .brand-text h1 { font-size: 22px; }
+  .toggle-label { display: none; }
+  .stats { gap: 8px; }
+  .stat-num { font-size: 24px; }
+  .row3 { grid-template-columns: 1fr; }
+  .panel-body { padding: 14px; }
+  .btn-full { font-size: 13px; padding: 12px; }
+  .toast { font-size: 12px; max-width: 88vw; white-space: normal; text-align: center; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <div class="brand">
+      <div class="brand-icon">📨</div>
+      <div class="brand-text">
+        <h1>San<span>desh</span></h1>
+        <p>Political Campaign Broadcaster</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <span class="toggle-label" id="toggle-label">Light</span>
+      <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()"></button>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card"><div class="stat-icon">🗺️</div><div class="stat-num" id="s-wards">0</div><div class="stat-label">Wards</div></div>
+    <div class="stat-card"><div class="stat-icon">👥</div><div class="stat-num" id="s-total">0</div><div class="stat-label">Voters</div></div>
+    <div class="stat-card"><div class="stat-icon">✅</div><div class="stat-num" id="s-sent">0</div><div class="stat-label">Sent</div></div>
+    <div class="stat-card"><div class="stat-icon">⏳</div><div class="stat-num" id="s-pending">0</div><div class="stat-label">Pending</div></div>
+  </div>
+
+  <div class="main">
+
+    <!-- LEFT -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">📥 Import Voters</div>
+          <button class="btn btn-outline" onclick="showSampleFormat()" style="font-size:11px;padding:6px 12px">📋 Format?</button>
+        </div>
+        <div class="panel-body">
+          <div class="upload-zone" id="excel-zone" onclick="document.getElementById('excel-input').click()">
+            <div class="u-icon">📊</div>
+            <p><strong>Excel (.xlsx) Upload Karo</strong></p>
+            <p class="fmt">Columns: Name | Phone | Ward</p>
+          </div>
+          <input type="file" id="excel-input" accept=".xlsx,.xls" onchange="importExcel(this)">
+
+          <div class="upload-zone" id="csv-zone" onclick="document.getElementById('csv-input').click()">
+            <div class="u-icon">📄</div>
+            <p><strong>CSV Upload Karo</strong></p>
+            <p class="fmt">Format: Name, Phone, Ward</p>
+          </div>
+          <input type="file" id="csv-input" accept=".csv" onchange="importCSV(this)">
+
+          <hr class="section-divider">
+          <label style="margin-bottom:10px;display:block">Manually Add Karo</label>
+          <div class="row3" style="margin-bottom:8px">
+            <input type="text" id="inp-name" placeholder="Naam">
+            <input type="text" id="inp-phone" placeholder="Phone">
+            <select id="inp-ward"><option value="">Ward Chuno</option></select>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-green" style="flex:1" onclick="addContact()">+ Add Voter</button>
+            <button class="btn btn-outline" onclick="openAddWard()">＋ Ward</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">🗂️ Voter Database</div>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-outline" onclick="exportCSV()" style="font-size:11px;padding:6px 10px">⬇ Export</button>
+            <button class="btn btn-danger" onclick="clearAll()" style="font-size:11px;padding:6px 10px">🗑 Clear</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="ward-tabs" id="ward-tabs">
+            <button class="ward-tab active" data-ward="all" onclick="filterWard('all', this)">Sab <span class="count">0</span></button>
+          </div>
+          <div class="contact-scroll" id="contact-list">
+            <div class="empty-state">
+              <div class="e-icon">🗳️</div>
+              <p>Koi voter nahi abhi<br>Excel/CSV import karo ya manually add karo</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">✍️ Message Compose</div>
+        </div>
+        <div class="panel-body">
+          <div class="field">
+            <label>Quick Templates</label>
+            <div class="template-row">
+              <button class="chip" onclick="setTemplate('diwali')">🪔 Diwali</button>
+              <button class="chip" onclick="setTemplate('holi')">🎨 Holi</button>
+              <button class="chip" onclick="setTemplate('eid')">🌙 Eid</button>
+              <button class="chip" onclick="setTemplate('newyear')">🎆 New Year</button>
+              <button class="chip" onclick="setTemplate('navratri')">🕉️ Navratri</button>
+              <button class="chip" onclick="setTemplate('rally')">📢 Rally</button>
+              <button class="chip" onclick="setTemplate('vote')">🗳️ Vote Appeal</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>Message — <span style="color:var(--wa-deep);font-style:italic">{name} aur {ward} use kar sakte ho</span></label>
+            <textarea id="msg-input" placeholder="Apna sandesh yahan likho..." oninput="updatePreview();updateCharCount()"></textarea>
+            <div class="char-count" id="char-count">0 characters</div>
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <label>Live Preview</label>
+            <div class="bubble-wrap">
+              <div class="bubble" id="msg-preview">Aapka message yahan dikhega...</div>
+              <div class="bubble-tail">
+                <span id="preview-time">12:00 PM</span>
+                <span style="color:var(--wa);font-size:13px">✓✓</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">🚀 Send Messages</div>
+        </div>
+        <div class="panel-body">
+          <div class="field">
+            <label>Kis Ward Ko Bhejni Hai?</label>
+            <select id="send-ward-filter">
+              <option value="all">Sab Wards (All Voters)</option>
+            </select>
+          </div>
+          <div class="hint">
+            💡 Selected ward ke voters ka WhatsApp open hoga pre-filled message ke saath. Bas <strong>Send</strong> dabao — bilkul free!
+          </div>
+          <button class="btn btn-green btn-full" id="send-btn" onclick="startSending()">
+            Send to All Contacts →
+          </button>
+          <div class="progress-wrap" id="progress-wrap">
+            <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+            <div class="progress-text" id="progress-text"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Add Ward Modal -->
+<div class="modal-overlay" id="ward-modal">
+  <div class="modal-box">
+    <div class="modal-title">🗺️ Naya Ward / Constituency</div>
+    <div class="field">
+      <label>Ward Ka Naam</label>
+      <input type="text" id="new-ward-input" placeholder="e.g. Ward 12, North Constituency...">
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-green" style="flex:1" onclick="addWard()">✓ Add Ward</button>
+      <button class="btn btn-outline" onclick="closeAddWard()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// THEME
+function toggleTheme() {
+  const isDark = document.documentElement.classList.toggle('dark');
+  localStorage.setItem('sandesh_theme', isDark ? 'dark' : 'light');
+  document.getElementById('theme-toggle').classList.toggle('dark-on', isDark);
+  document.getElementById('toggle-label').textContent = isDark ? 'Dark' : 'Light';
+}
+(function() {
+  const saved = localStorage.getItem('sandesh_theme');
+  const sys = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  if (saved === 'dark' || (!saved && sys)) {
+    document.documentElement.classList.add('dark');
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('theme-toggle')?.classList.add('dark-on');
+      const lbl = document.getElementById('toggle-label');
+      if (lbl) lbl.textContent = 'Dark';
+    });
+  }
+})();
+
+// STATE
+let contacts = JSON.parse(localStorage.getItem('sandesh_v2_contacts') || '[]');
+let wards = JSON.parse(localStorage.getItem('sandesh_v2_wards') || '[]');
+let activeWardFilter = 'all';
+
+// TEMPLATES
+const templates = {
+  diwali: `🪔 Happy Diwali {name} ji! 🎆\n\nAapko aur aapke poore parivaar ko Deepavali ki hardik shubhkamnayein! 🙏\n\nYeh tyohaar aapke jeevan mein khushi aur samriddhi laaye. ✨\n\n— [Neta Ji Ka Naam]`,
+  holi: `🎨 Happy Holi {name} ji! 🌈\n\nRangon ke is pyaare tyohaar par aapka jeevan khushiyon se bhara rahe! 🎊\n\nHoli Mubarak! 🙏\n— [Neta Ji Ka Naam]`,
+  eid: `🌙 Eid Mubarak {name} ji! ✨\n\nAap aur aapke ghar waalon ko Eid ki dher saari badhaaiyaan!\nAllah aapki tamam duaayein qubool farmaaein. 🤲\n— [Neta Ji Ka Naam]`,
+  newyear: `🎆 Happy New Year {name} ji! 🎉\n\nNaya saal aapke liye nai khushiyaan aur nai kaamyaabiyaan laaye! 🌟\n\nShubh Naya Varsh! 🙏\n— [Neta Ji Ka Naam]`,
+  navratri: `🕉️ Jai Mata Di {name} ji! 🪔\n\nNavratri ke paavan mauke par Maa Durga ki kripa aap par sada bani rahe. 🙏\n\nNavaratri ki shubhkamnayein! ✨\n— [Neta Ji Ka Naam]`,
+  rally: `📢 Aadarniya {name} ji,\n\n{ward} mein hamaari badi jaansabha ho rahi hai!\n\n📅 Kal Shaam 5:00 PM\n📍 [Sthal Ka Naam]\n\nAapki upasthiti hamein shakti deti hai. Zaroor padhaarein! 🙏\n\n— [Neta Ji Ka Naam]`,
+  vote: `🗳️ Aadarniya {name} ji,\n\nAapka ek vote {ward} ki taqdeer badal sakta hai!\n\nHamare saath milke ek behtar kal banaaiye. 🙏\n\nVoting Day par ghar se zaroor niklen!\n\nJai Hind! 🇮🇳\n— [Neta Ji Ka Naam]`
+};
+
+function setTemplate(k) { document.getElementById('msg-input').value = templates[k]; updatePreview(); updateCharCount(); }
+
+function updatePreview() {
+  const msg = document.getElementById('msg-input').value;
+  const sampleWard = wards[0] || 'Ward 1';
+  const preview = msg.replace(/\{name\}/g, 'Ram Kumar Ji').replace(/\{ward\}/g, sampleWard) || 'Aapka message yahan dikhega...';
+  document.getElementById('msg-preview').textContent = preview;
+  const now = new Date();
+  document.getElementById('preview-time').textContent = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+}
+
+function updateCharCount() {
+  const len = document.getElementById('msg-input').value.length;
+  const el = document.getElementById('char-count');
+  el.textContent = `${len} characters`;
+  el.className = 'char-count' + (len > 1000 ? ' warn' : '');
+}
+
+// WARDS
+function openAddWard() { document.getElementById('ward-modal').classList.add('open'); setTimeout(() => document.getElementById('new-ward-input').focus(), 100); }
+function closeAddWard() { document.getElementById('ward-modal').classList.remove('open'); document.getElementById('new-ward-input').value = ''; }
+
+function addWard(name) {
+  const wardName = name || document.getElementById('new-ward-input').value.trim();
+  if (!wardName) return showToast('⚠️ Ward ka naam likho!');
+  if (wards.includes(wardName)) { closeAddWard(); return; }
+  wards.push(wardName);
+  localStorage.setItem('sandesh_v2_wards', JSON.stringify(wards));
+  refreshWardUI();
+  closeAddWard();
+  if (!name) showToast(`🗺️ "${wardName}" add ho gaya!`);
+}
+
+function refreshWardUI() {
+  // Tabs
+  const tabsEl = document.getElementById('ward-tabs');
+  let html = `<button class="ward-tab ${activeWardFilter === 'all' ? 'active' : ''}" onclick="filterWard('all', this)">Sab <span class="count">${contacts.length}</span></button>`;
+  wards.forEach(w => {
+    const cnt = contacts.filter(c => c.ward === w).length;
+    html += `<button class="ward-tab ${activeWardFilter === w ? 'active' : ''}" onclick="filterWard('${w}', this)">${w} <span class="count">${cnt}</span></button>`;
+  });
+  tabsEl.innerHTML = html;
+
+  // Ward select (add form)
+  const sel = document.getElementById('inp-ward');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Ward Chuno</option>';
+  wards.forEach(w => sel.innerHTML += `<option value="${w}" ${cur === w ? 'selected' : ''}>${w}</option>`);
+
+  // Ward select (send filter)
+  const sendSel = document.getElementById('send-ward-filter');
+  const sendCur = sendSel.value;
+  sendSel.innerHTML = '<option value="all">Sab Wards (All Voters)</option>';
+  wards.forEach(w => sendSel.innerHTML += `<option value="${w}" ${sendCur === w ? 'selected' : ''}>${w}</option>`);
+}
+
+function filterWard(ward, btn) {
+  activeWardFilter = ward;
+  document.querySelectorAll('.ward-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  renderContacts();
+}
+
+// CONTACTS
+function saveContacts() {
+  localStorage.setItem('sandesh_v2_contacts', JSON.stringify(contacts));
+  updateStats(); refreshWardUI(); renderContacts();
+}
+
+function updateStats() {
+  document.getElementById('s-wards').textContent = wards.length;
+  document.getElementById('s-total').textContent = contacts.length;
+  document.getElementById('s-sent').textContent = contacts.filter(c => c.status === 'sent').length;
+  document.getElementById('s-pending').textContent = contacts.filter(c => c.status !== 'sent').length;
+}
+
+function addContact() {
+  const name = document.getElementById('inp-name').value.trim();
+  let phone = document.getElementById('inp-phone').value.trim().replace(/\D/g, '');
+  const ward = document.getElementById('inp-ward').value || 'General';
+  if (!phone) return showToast('⚠️ Phone number chahiye!');
+  if (phone.length === 10) phone = '91' + phone;
+  if (contacts.find(c => c.phone === phone)) return showToast('⚠️ Yeh number pehle se hai!');
+  if (ward !== 'General' && !wards.includes(ward)) addWard(ward);
+  contacts.push({ name: name || 'Voter', phone, ward, status: 'pending' });
+  document.getElementById('inp-name').value = '';
+  document.getElementById('inp-phone').value = '';
+  document.getElementById('inp-name').focus();
+  saveContacts();
+  showToast('✅ Voter add ho gaya!');
+}
+
+function removeContact(idx) { contacts.splice(idx, 1); saveContacts(); }
+
+function renderContacts() {
+  const list = document.getElementById('contact-list');
+  const filtered = activeWardFilter === 'all' ? contacts : contacts.filter(c => c.ward === activeWardFilter);
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty-state"><div class="e-icon">🗳️</div><p>${contacts.length ? 'Is ward mein koi voter nahi' : 'Koi voter nahi abhi<br>Excel/CSV import karo ya manually add karo'}</p></div>`;
+    return;
+  }
+  if (activeWardFilter === 'all') {
+    const groups = {};
+    filtered.forEach(c => { const w = c.ward || 'General'; if (!groups[w]) groups[w] = []; groups[w].push(c); });
+    let html = '';
+    Object.entries(groups).forEach(([ward, members]) => {
+      html += `<div class="group-header">🗺️ ${ward} <span class="g-count">${members.length}</span></div>`;
+      html += members.map(c => contactHTML(c, contacts.indexOf(c))).join('');
+    });
+    list.innerHTML = html;
+  } else {
+    list.innerHTML = filtered.map(c => contactHTML(c, contacts.indexOf(c))).join('');
+  }
+}
+
+function contactHTML(c, idx) {
+  return `<div class="contact-item">
+    <div class="avatar">${c.name.charAt(0).toUpperCase()}</div>
+    <div class="c-info">
+      <div class="c-name">${c.name}</div>
+      <div class="c-sub"><span>+${c.phone}</span>${c.ward ? `<span class="ward-pill">${c.ward}</span>` : ''}</div>
+    </div>
+    <span class="badge badge-${c.status || 'pending'}">${c.status === 'sent' ? '✓ Sent' : c.status === 'sending' ? '...' : 'Pending'}</span>
+    <button class="del-btn" onclick="removeContact(${idx})">×</button>
+  </div>`;
+}
+
+// IMPORT
+function processRows(rows) {
+  let added = 0;
+  rows.forEach(row => {
+    let name = (row[0] || '').toString().trim();
+    let rawPhone = (row[1] || '').toString().trim().replace(/\D/g, '');
+    let ward = (row[2] || 'General').toString().trim() || 'General';
+    if (!rawPhone || rawPhone.length < 10) return;
+    if (rawPhone.length === 10) rawPhone = '91' + rawPhone;
+    if (contacts.find(c => c.phone === rawPhone)) return;
+    if (ward && ward !== 'General' && !wards.includes(ward)) addWard(ward);
+    contacts.push({ name: name || 'Voter', phone: rawPhone, ward, status: 'pending' });
+    added++;
+  });
+  return added;
+}
+
+function importExcel(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+      const rows = (data[0] && isNaN(data[0][1])) ? data.slice(1) : data;
+      const added = processRows(rows.filter(r => r.some(Boolean)));
+      saveContacts();
+      showToast(`✅ ${added} voters import ho gaye (Excel)!`);
+    } catch(err) { showToast('❌ Excel file read nahi ho rahi!'); }
+  };
+  reader.readAsArrayBuffer(file);
+  input.value = '';
+}
+
+function importCSV(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const lines = e.target.result.split('\n').filter(l => l.trim());
+    const rows = lines.map(line => line.split(',').map(s => s.trim().replace(/"/g, '')));
+    const dataRows = (rows[0] && isNaN(rows[0][1])) ? rows.slice(1) : rows;
+    const added = processRows(dataRows);
+    saveContacts();
+    showToast(`✅ ${added} voters import ho gaye (CSV)!`);
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+function exportCSV() {
+  if (!contacts.length) return showToast('⚠️ Koi voter nahi!');
+  const csv = 'Name,Phone,Ward\n' + contacts.map(c => `"${c.name}",${c.phone},"${c.ward || ''}"`).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'sandesh_voters.csv';
+  a.click();
+}
+
+function clearAll() {
+  if (!contacts.length) return;
+  if (!confirm('Saare voters aur wards delete karne hain?')) return;
+  contacts = []; wards = [];
+  localStorage.removeItem('sandesh_v2_contacts');
+  localStorage.removeItem('sandesh_v2_wards');
+  activeWardFilter = 'all';
+  saveContacts();
+  showToast('🗑 Sab clear ho gaya!');
+}
+
+function showSampleFormat() {
+  alert('Excel/CSV ka format:\n\nColumn A → Naam    (e.g. Ram Kumar)\nColumn B → Phone   (e.g. 9876543210)\nColumn C → Ward    (e.g. Ward 12)\n\nPehli row header ho sakti hai — auto skip ho jaayegi.\nWards automatically create ho jaayenge!');
+}
+
+// SEND
+async function startSending() {
+  const msg = document.getElementById('msg-input').value.trim();
+  if (!msg) return showToast('⚠️ Pehle message likho!');
+  const wardFilter = document.getElementById('send-ward-filter').value;
+  const targets = contacts.filter(c => c.status !== 'sent' && (wardFilter === 'all' || c.ward === wardFilter));
+  if (!targets.length) return showToast('✅ Is selection ke sabko bhej diya!');
+
+  const btn = document.getElementById('send-btn');
+  const wrap = document.getElementById('progress-wrap');
+  const fill = document.getElementById('progress-fill');
+  const ptext = document.getElementById('progress-text');
+  btn.disabled = true; wrap.style.display = 'block';
+  let done = 0;
+
+  for (let i = 0; i < contacts.length; i++) {
+    const c = contacts[i];
+    if (c.status === 'sent') continue;
+    if (wardFilter !== 'all' && c.ward !== wardFilter) continue;
+    contacts[i].status = 'sending'; renderContacts();
+    const personalMsg = msg.replace(/\{name\}/g, c.name).replace(/\{ward\}/g, c.ward || '');
+    window.open(`https://wa.me/${c.phone}?text=${encodeURIComponent(personalMsg)}`, '_blank');
+    await new Promise(r => setTimeout(r, 1200));
+    contacts[i].status = 'sent'; done++;
+    fill.style.width = (done / targets.length * 100) + '%';
+    ptext.textContent = `${done} / ${targets.length} bheje gaye`;
+    saveContacts();
+    if (done < targets.length) await new Promise(r => setTimeout(r, 1500));
+  }
+  btn.disabled = false;
+  showToast(`🎉 ${done} voters ko Sandesh bhej diya!`);
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+// DRAG DROP
+['excel-zone', 'csv-zone'].forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('drag-over'); });
+  el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
+  el.addEventListener('drop', e => {
+    e.preventDefault(); el.classList.remove('drag-over');
+    const f = e.dataTransfer.files[0];
+    if (!f) return;
+    if (f.name.match(/\.xlsx?$/)) importExcel({ files: [f] });
+    else if (f.name.endsWith('.csv')) importCSV({ files: [f] });
+  });
+});
+
+document.getElementById('ward-modal').addEventListener('click', function(e) { if (e.target === this) closeAddWard(); });
+document.getElementById('new-ward-input').addEventListener('keydown', e => { if (e.key === 'Enter') addWard(); });
+document.getElementById('inp-phone').addEventListener('keydown', e => { if (e.key === 'Enter') addContact(); });
+
+// INIT
+refreshWardUI(); renderContacts(); updateStats();
+</script>
+</body>
+</html>
