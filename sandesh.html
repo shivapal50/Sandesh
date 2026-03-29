@@ -231,6 +231,11 @@ textarea { resize: vertical; min-height: 120px; line-height: 1.7; }
 .modal-title { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; margin-bottom: 16px; }
 .modal-foot { display: flex; gap: 8px; margin-top: 16px; }
 
+.mode-btn { flex:1; padding:9px; border-radius:10px; border:1.5px solid var(--border); background:var(--bg); color:var(--muted); font-family:'Plus Jakarta Sans',sans-serif; font-size:12px; font-weight:700; cursor:pointer; transition:all 0.2s; }
+.mode-btn.active { background:var(--wa-deep); color:#fff; border-color:var(--wa-deep); }
+.mode-btn:not(.active):hover { border-color:var(--wa); color:var(--wa-deep); }
+html.dark .mode-btn { background:#181818; border-color:#252525; }
+
 .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--ink); color: #fff; border-radius: 30px; padding: 12px 22px; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; z-index: 999; opacity: 0; transition: all 0.35s cubic-bezier(0.34,1.56,0.64,1); white-space: nowrap; box-shadow: 0 8px 30px rgba(0,0,0,0.2); }
 .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
 
@@ -259,10 +264,11 @@ textarea { resize: vertical; min-height: 120px; line-height: 1.7; }
       <div class="brand-icon">📨</div>
       <div class="brand-text">
         <h1>San<span>desh</span></h1>
-        <p>Political Campaign SMS Broadcaster</p>
+        <p>Political Campaign Broadcaster</p>
       </div>
     </div>
     <div class="header-right">
+      <button class="btn btn-outline" onclick="openSettings()" style="font-size:11px;padding:7px 13px">⚙️ API Settings</button>
       <span class="toggle-label" id="toggle-label">Light</span>
       <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()"></button>
     </div>
@@ -363,12 +369,12 @@ textarea { resize: vertical; min-height: 120px; line-height: 1.7; }
             <div class="char-count" id="char-count">0 characters</div>
           </div>
           <div class="field" style="margin-bottom:0">
-            <label>Live Preview (SMS)</label>
-            <div class="bubble-wrap" style="background:#e0e0e0">
-              <div class="bubble" id="msg-preview" style="background:#fff;border-radius:12px 12px 12px 2px;color:#111">Aapka message yahan dikhega...</div>
+            <label>Live Preview</label>
+            <div class="bubble-wrap">
+              <div class="bubble" id="msg-preview">Aapka message yahan dikhega...</div>
               <div class="bubble-tail">
                 <span id="preview-time">12:00 PM</span>
-                <span style="color:#888;font-size:11px">SMS</span>
+                <span style="color:var(--wa);font-size:13px">✓✓</span>
               </div>
             </div>
           </div>
@@ -386,17 +392,37 @@ textarea { resize: vertical; min-height: 120px; line-height: 1.7; }
               <option value="all">Sab Wards (All Voters)</option>
             </select>
           </div>
-          <div class="hint">
-            💡 Phone ka SMS app khulega pre-filled message ke saath. Message bhejo phir <strong>Next →</strong> dabao — agle contact par jaao!
+
+          <!-- Mode Toggle -->
+          <div style="display:flex;gap:8px;margin-bottom:14px">
+            <button class="mode-btn active" id="mode-wa" onclick="setMode('wa')">💬 WhatsApp</button>
+            <button class="mode-btn" id="mode-sms" onclick="setMode('sms')">📤 Bulk SMS (API)</button>
           </div>
 
-          <!-- Start button -->
+          <div class="hint" id="hint-wa">
+            💡 Har contact ka WhatsApp khulega pre-filled message ke saath. <strong>Next →</strong> dabao agle par jaao.
+          </div>
+          <div class="hint" id="hint-sms" style="display:none">
+            ⚡ Fast2SMS API se <strong>ek click mein sabko automatic SMS</strong> jaayega — koi manual kaam nahi!
+            <span id="api-status" style="display:block;margin-top:5px;font-weight:700;color:#e67e22">⚠️ API Key set nahi — upar Settings dabao</span>
+          </div>
+
+          <!-- Start Button -->
           <button class="btn btn-green btn-full" id="send-btn" onclick="startSending()">
             🚀 Sending Shuru Karo
           </button>
 
-          <!-- Sending mode UI -->
-          <div id="sending-ui" style="display:none">
+          <!-- Fast2SMS Progress -->
+          <div id="sms-progress-ui" style="display:none;margin-top:14px">
+            <div class="progress-wrap" style="display:block">
+              <div class="progress-track"><div class="progress-fill" id="sms-fill"></div></div>
+              <div class="progress-text" id="sms-ptext">Bhej rahe hain...</div>
+            </div>
+            <div id="sms-log" style="margin-top:10px;max-height:110px;overflow-y:auto;font-size:11px;color:var(--muted);background:var(--bg);border-radius:8px;padding:10px;border:1px solid var(--border);line-height:1.8"></div>
+          </div>
+
+          <!-- WhatsApp Manual UI -->
+          <div id="sending-ui" style="display:none;margin-top:12px">
             <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px;">
               <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Ab Bhej Rahe Ho</div>
               <div style="display:flex;align-items:center;gap:10px;">
@@ -408,16 +434,10 @@ textarea { resize: vertical; min-height: 120px; line-height: 1.7; }
                 <span class="badge badge-sending" style="margin-left:auto">Sending...</span>
               </div>
             </div>
-
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
-              <button class="btn btn-green btn-full" id="next-btn" onclick="nextContact()" style="font-size:13px;padding:12px">
-                Next → <span id="next-count"></span>
-              </button>
-              <button class="btn btn-danger btn-full" onclick="stopSending()" style="font-size:13px;padding:12px">
-                ⏹ Rok Do
-              </button>
+              <button class="btn btn-green btn-full" onclick="nextContact()" style="font-size:13px;padding:12px">Next → <span id="next-count"></span></button>
+              <button class="btn btn-danger btn-full" onclick="stopSending()" style="font-size:13px;padding:12px">⏹ Rok Do</button>
             </div>
-
             <div class="progress-wrap" style="display:block">
               <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
               <div class="progress-text" id="progress-text"></div>
@@ -442,6 +462,41 @@ textarea { resize: vertical; min-height: 120px; line-height: 1.7; }
     <div class="modal-foot">
       <button class="btn btn-green" style="flex:1" onclick="addWard()">✓ Add Ward</button>
       <button class="btn btn-outline" onclick="closeAddWard()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" id="settings-modal">
+  <div class="modal-box" style="width:440px">
+    <div class="modal-title">⚙️ Fast2SMS API Settings</div>
+    <div style="background:rgba(37,211,102,0.07);border:1px solid rgba(37,211,102,0.2);border-radius:10px;padding:12px;margin-bottom:16px;font-size:12px;line-height:1.7;color:var(--ink2)">
+      📋 <strong>Kaise setup karein:</strong><br>
+      1. <a href="https://fast2sms.com" target="_blank" style="color:var(--wa-deep);font-weight:700">fast2sms.com</a> par account banao<br>
+      2. Dashboard → Dev API → API Key copy karo<br>
+      3. Sender ID apply karo (e.g. <code style="background:var(--border);padding:1px 5px;border-radius:4px">SANDSH</code>)<br>
+      4. Neeche fill karke Save karo
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="display:block;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">Fast2SMS API Key</label>
+      <input type="password" id="api-key-input" placeholder="Aapki API key yahan...">
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="display:block;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">Sender ID (6 letters, approved)</label>
+      <input type="text" id="sender-id-input" placeholder="e.g. SANDSH, BJPVOT" maxlength="6" style="text-transform:uppercase">
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="display:block;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">Route Type</label>
+      <select id="msg-type-input">
+        <option value="p">Promotional — sabko jaata hai</option>
+        <option value="t">Transactional — DLT registered numbers</option>
+        <option value="q">Quick Transactional</option>
+      </select>
+    </div>
+    <div id="settings-status" style="font-size:12px;margin-bottom:8px;display:none;font-weight:600"></div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn btn-green" style="flex:1" onclick="saveSettings()">💾 Save Settings</button>
+      <button class="btn btn-outline" onclick="closeSettings()">Cancel</button>
     </div>
   </div>
 </div>
@@ -688,7 +743,63 @@ function showSampleFormat() {
   alert('Excel/CSV ka format:\n\nColumn A → Naam    (e.g. Ram Kumar)\nColumn B → Phone   (e.g. 9876543210)\nColumn C → Ward    (e.g. Ward 12)\n\nPehli row header ho sakti hai — auto skip ho jaayegi.\nWards automatically create ho jaayenge!');
 }
 
-// SEND — Next button flow
+// SETTINGS & MODE
+let apiKey = localStorage.getItem('f2s_api_key') || '';
+let senderId = localStorage.getItem('f2s_sender_id') || '';
+let msgRoute = localStorage.getItem('f2s_route') || 'p';
+let sendMode = 'wa';
+
+function openSettings() {
+  document.getElementById('api-key-input').value = apiKey;
+  document.getElementById('sender-id-input').value = senderId;
+  document.getElementById('msg-type-input').value = msgRoute;
+  document.getElementById('settings-status').style.display = 'none';
+  document.getElementById('settings-modal').classList.add('open');
+}
+function closeSettings() { document.getElementById('settings-modal').classList.remove('open'); }
+
+function saveSettings() {
+  const k = document.getElementById('api-key-input').value.trim();
+  const s = document.getElementById('sender-id-input').value.trim().toUpperCase();
+  const r = document.getElementById('msg-type-input').value;
+  if (!k) return showSettingsMsg('⚠️ API Key daalo!', '#e67e22');
+  if (!s) return showSettingsMsg('⚠️ Sender ID daalo!', '#e67e22');
+  apiKey = k; senderId = s; msgRoute = r;
+  localStorage.setItem('f2s_api_key', k);
+  localStorage.setItem('f2s_sender_id', s);
+  localStorage.setItem('f2s_route', r);
+  updateApiStatus();
+  showSettingsMsg('✅ Saved!', 'var(--wa-deep)');
+  setTimeout(closeSettings, 700);
+  showToast('✅ API Settings save ho gayi!');
+}
+
+function showSettingsMsg(msg, color) {
+  const el = document.getElementById('settings-status');
+  el.style.display = 'block'; el.style.color = color; el.textContent = msg;
+}
+
+function updateApiStatus() {
+  const el = document.getElementById('api-status');
+  if (!el) return;
+  if (apiKey && senderId) {
+    el.style.color = 'var(--wa-deep)';
+    el.textContent = `✅ API Ready — Sender: ${senderId}`;
+  } else {
+    el.style.color = '#e67e22';
+    el.textContent = '⚠️ API Key set nahi — upar Settings dabao';
+  }
+}
+
+function setMode(mode) {
+  sendMode = mode;
+  document.getElementById('mode-wa').classList.toggle('active', mode === 'wa');
+  document.getElementById('mode-sms').classList.toggle('active', mode === 'sms');
+  document.getElementById('hint-wa').style.display = mode === 'wa' ? 'block' : 'none';
+  document.getElementById('hint-sms').style.display = mode === 'sms' ? 'block' : 'none';
+}
+
+// SEND
 let sendTargets = [];
 let sendIndex = 0;
 let sendMsg = '';
@@ -702,38 +813,83 @@ function startSending() {
     .filter(c => c.status !== 'sent' && (wardFilter === 'all' || c.ward === wardFilter));
   if (!targets.length) return showToast('✅ Is selection ke sabko bhej diya!');
 
-  sendTargets = targets;
-  sendIndex = 0;
-  sendMsg = msg;
+  if (sendMode === 'sms') {
+    startBulkSMS(targets, msg);
+  } else {
+    sendTargets = targets; sendIndex = 0; sendMsg = msg;
+    document.getElementById('send-btn').style.display = 'none';
+    document.getElementById('sending-ui').style.display = 'block';
+    openCurrentContact();
+  }
+}
 
-  document.getElementById('send-btn').style.display = 'none';
-  document.getElementById('sending-ui').style.display = 'block';
+// FAST2SMS BULK
+async function startBulkSMS(targets, msg) {
+  if (!apiKey || !senderId) {
+    openSettings();
+    return showToast('⚠️ Pehle API key set karo!');
+  }
+  const btn = document.getElementById('send-btn');
+  const ui = document.getElementById('sms-progress-ui');
+  const fill = document.getElementById('sms-fill');
+  const ptext = document.getElementById('sms-ptext');
+  const log = document.getElementById('sms-log');
 
-  openCurrentContact();
+  btn.disabled = true; ui.style.display = 'block'; log.innerHTML = '';
+
+  const batchSize = 100;
+  let totalSent = 0, totalFailed = 0;
+
+  for (let i = 0; i < targets.length; i += batchSize) {
+    const batch = targets.slice(i, i + batchSize);
+    const phones = batch.map(c => c.phone).join(',');
+    const batchMsg = msg.replace(/\{name\}/g, 'Ji').replace(/\{ward\}/g, batch[0].ward || '');
+    const batchNum = Math.floor(i / batchSize) + 1;
+
+    try {
+      const url = `https://www.fast2sms.com/dev/bulkV2?authorization=${apiKey}&sender_id=${senderId}&message=${encodeURIComponent(batchMsg)}&language=english&route=${msgRoute}&numbers=${phones}`;
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if (data.return === true) {
+        batch.forEach(c => { contacts[c._idx].status = 'sent'; });
+        totalSent += batch.length;
+        log.innerHTML += `<div style="color:var(--wa-deep)">✅ Batch ${batchNum}: ${batch.length} SMS sent (${senderId})</div>`;
+      } else {
+        totalFailed += batch.length;
+        log.innerHTML += `<div style="color:#e74c3c">❌ Batch ${batchNum} failed: ${data.message || 'Unknown error'}</div>`;
+      }
+    } catch (err) {
+      totalFailed += batch.length;
+      log.innerHTML += `<div style="color:#e74c3c">❌ Batch ${batchNum}: Network error</div>`;
+    }
+
+    const done = Math.min(i + batchSize, targets.length);
+    fill.style.width = (done / targets.length * 100) + '%';
+    ptext.textContent = `${done} / ${targets.length} process ho gaye`;
+    log.scrollTop = log.scrollHeight;
+    saveContacts();
+    if (i + batchSize < targets.length) await new Promise(r => setTimeout(r, 400));
+  }
+
+  btn.disabled = false;
+  updateStats();
+  showToast(`🎉 Done! ${totalSent} sent, ${totalFailed} failed`);
 }
 
 function openCurrentContact() {
   if (sendIndex >= sendTargets.length) return finishSending();
-
   const c = sendTargets[sendIndex];
   const total = sendTargets.length;
-  const done = sendIndex;
-
-  // Update UI
   document.getElementById('current-avatar').textContent = c.name.charAt(0).toUpperCase();
   document.getElementById('current-name').textContent = c.name;
   document.getElementById('current-info').textContent = `+${c.phone}  •  ${c.ward || 'General'}`;
-  document.getElementById('next-count').textContent = `(${done + 1}/${total})`;
-  document.getElementById('progress-fill').style.width = (done / total * 100) + '%';
-  document.getElementById('progress-text').textContent = `${done} / ${total} bheje gaye`;
-
-  // Mark as sending
-  contacts[c._idx].status = 'sending';
-  renderContacts();
-
-  // Open SMS
+  document.getElementById('next-count').textContent = `(${sendIndex + 1}/${total})`;
+  document.getElementById('progress-fill').style.width = (sendIndex / total * 100) + '%';
+  document.getElementById('progress-text').textContent = `${sendIndex} / ${total} bheje gaye`;
+  contacts[c._idx].status = 'sending'; renderContacts();
   const personalMsg = sendMsg.replace(/\{name\}/g, c.name).replace(/\{ward\}/g, c.ward || '');
-  window.open(`sms:+${c.phone}?body=${encodeURIComponent(personalMsg)}`, '_self');
+  window.open(`https://wa.me/${c.phone}?text=${encodeURIComponent(personalMsg)}`, '_blank');
 }
 
 function nextContact() {
@@ -797,12 +953,14 @@ function showToast(msg) {
   });
 });
 
+document.getElementById('settings-modal').addEventListener('click', function(e) { if (e.target === this) closeSettings(); });
 document.getElementById('ward-modal').addEventListener('click', function(e) { if (e.target === this) closeAddWard(); });
 document.getElementById('new-ward-input').addEventListener('keydown', e => { if (e.key === 'Enter') addWard(); });
 document.getElementById('inp-phone').addEventListener('keydown', e => { if (e.key === 'Enter') addContact(); });
+document.getElementById('sender-id-input')?.addEventListener('input', function() { this.value = this.value.toUpperCase(); });
 
 // INIT
-refreshWardUI(); renderContacts(); updateStats();
+refreshWardUI(); renderContacts(); updateStats(); updateApiStatus();
 </script>
 </body>
 </html>
