@@ -403,7 +403,7 @@ html.dark .mode-btn { background:#181818; border-color:#252525; }
             💡 Har contact ka WhatsApp khulega pre-filled message ke saath. <strong>Next →</strong> dabao agle par jaao.
           </div>
           <div class="hint" id="hint-sms" style="display:none">
-            ⚡ Fast2SMS API se <strong>ek click mein sabko automatic SMS</strong> jaayega — koi manual kaam nahi!
+            ⚡ MSG91 API se <strong>ek click mein sabko automatic SMS</strong> jaayega — koi manual kaam nahi!
             <span id="api-status" style="display:block;margin-top:5px;font-weight:700;color:#e67e22">⚠️ API Key set nahi — upar Settings dabao</span>
           </div>
 
@@ -469,13 +469,13 @@ html.dark .mode-btn { background:#181818; border-color:#252525; }
 <!-- Settings Modal -->
 <div class="modal-overlay" id="settings-modal">
   <div class="modal-box" style="width:440px">
-    <div class="modal-title">⚙️ Fast2SMS API Settings</div>
+    <div class="modal-title">⚙️ MSG91 API Settings</div>
     <div style="background:rgba(37,211,102,0.07);border:1px solid rgba(37,211,102,0.2);border-radius:10px;padding:12px;margin-bottom:16px;font-size:12px;line-height:1.7;color:var(--ink2)">
       📋 <strong>Kaise setup karein:</strong><br>
-      1. <a href="https://fast2sms.com" target="_blank" style="color:var(--wa-deep);font-weight:700">fast2sms.com</a> par account banao<br>
-      2. Dashboard → Dev API → API Key copy karo<br>
-      3. Sender ID apply karo (e.g. <code style="background:var(--border);padding:1px 5px;border-radius:4px">SANDSH</code>)<br>
-      4. Neeche fill karke Save karo
+      1. <a href="https://msg91.com" target="_blank" style="color:var(--wa-deep);font-weight:700">msg91.com</a> → Login → Dashboard<br>
+      2. Top right → <strong>AuthKey</strong> click karo<br>
+      3. API key copy karo<br>
+      4. Sender ID: MSG91 dashboard → SMS → Sender ID
     </div>
     <div style="margin-bottom:12px">
       <label style="display:block;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">Fast2SMS API Key</label>
@@ -488,9 +488,8 @@ html.dark .mode-btn { background:#181818; border-color:#252525; }
     <div style="margin-bottom:12px">
       <label style="display:block;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">Route Type</label>
       <select id="msg-type-input">
-        <option value="p">Promotional — sabko jaata hai</option>
-        <option value="t">Transactional — DLT registered numbers</option>
-        <option value="q">Quick Transactional</option>
+        <option value="4">Transactional (Route 4) — DLT registered</option>
+        <option value="1">Promotional (Route 1) — sabko jaata hai</option>
       </select>
     </div>
     <div id="settings-status" style="font-size:12px;margin-bottom:8px;display:none;font-weight:600"></div>
@@ -746,7 +745,7 @@ function showSampleFormat() {
 // SETTINGS & MODE
 let apiKey = localStorage.getItem('f2s_api_key') || '';
 let senderId = localStorage.getItem('f2s_sender_id') || '';
-let msgRoute = localStorage.getItem('f2s_route') || 'p';
+let msgRoute = localStorage.getItem('f2s_route') || 'q';
 let sendMode = 'wa';
 
 function openSettings() {
@@ -823,7 +822,7 @@ function startSending() {
   }
 }
 
-// FAST2SMS BULK
+// MSG91 BULK SMS
 async function startBulkSMS(targets, msg) {
   if (!apiKey || !senderId) {
     openSettings();
@@ -836,32 +835,78 @@ async function startBulkSMS(targets, msg) {
   const log = document.getElementById('sms-log');
 
   btn.disabled = true; ui.style.display = 'block'; log.innerHTML = '';
+  log.innerHTML += `<div style="color:var(--muted)">📡 MSG91 se connect ho rahe hain...</div>`;
 
-  const batchSize = 100;
+  const batchSize = 50;
   let totalSent = 0, totalFailed = 0;
 
   for (let i = 0; i < targets.length; i += batchSize) {
     const batch = targets.slice(i, i + batchSize);
-    const phones = batch.map(c => c.phone).join(',');
-    const batchMsg = msg.replace(/\{name\}/g, 'Ji').replace(/\{ward\}/g, batch[0].ward || '');
     const batchNum = Math.floor(i / batchSize) + 1;
 
-    try {
-      const url = `https://www.fast2sms.com/dev/bulkV2?authorization=${apiKey}&sender_id=${senderId}&message=${encodeURIComponent(batchMsg)}&language=english&route=${msgRoute}&numbers=${phones}`;
-      const res = await fetch(url);
-      const data = await res.json();
+    // MSG91 format — har number ke liye personalized message
+    const recipients = batch.map(c => {
+      const personalMsg = msg
+        .replace(/\{name\}/g, c.name)
+        .replace(/\{ward\}/g, c.ward || '');
+      return {
+        mobiles: c.phone,
+        message: personalMsg
+      };
+    });
 
-      if (data.return === true) {
+    const payload = {
+      sender: senderId,
+      route: msgRoute || '4',
+      country: '91',
+      sms: recipients
+    };
+
+    try {
+      const res = await fetch('https://api.msg91.com/api/v2/sendsms', {
+        method: 'POST',
+        headers: {
+          'authkey': apiKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch(e) { data = { type: text }; }
+
+      if (data.type === 'success' || res.ok) {
         batch.forEach(c => { contacts[c._idx].status = 'sent'; });
         totalSent += batch.length;
-        log.innerHTML += `<div style="color:var(--wa-deep)">✅ Batch ${batchNum}: ${batch.length} SMS sent (${senderId})</div>`;
+        log.innerHTML += `<div style="color:var(--wa-deep)">✅ Batch ${batchNum}: ${batch.length} SMS sent!</div>`;
       } else {
         totalFailed += batch.length;
-        log.innerHTML += `<div style="color:#e74c3c">❌ Batch ${batchNum} failed: ${data.message || 'Unknown error'}</div>`;
+        const errMsg = data.message || data.type || JSON.stringify(data);
+        log.innerHTML += `<div style="color:#e74c3c">❌ Batch ${batchNum} failed: ${errMsg}</div>`;
       }
     } catch (err) {
       totalFailed += batch.length;
-      log.innerHTML += `<div style="color:#e74c3c">❌ Batch ${batchNum}: Network error</div>`;
+      // CORS issue — try alternate endpoint
+      log.innerHTML += `<div style="color:#e67e22">⚠️ Batch ${batchNum}: CORS issue — alternate try kar raha hoon...</div>`;
+
+      try {
+        const phones = batch.map(c => c.phone).join(',');
+        const singleMsg = msg.replace(/\{name\}/g, 'Ji').replace(/\{ward\}/g, batch[0].ward || '');
+        const url = `https://api.msg91.com/api/sendhttp.php?authkey=${apiKey}&mobiles=${phones}&message=${encodeURIComponent(singleMsg)}&sender=${senderId}&route=${msgRoute || '4'}&country=91`;
+        const res2 = await fetch(url);
+        const text2 = await res2.text();
+        if (text2.includes('success') || /^\d+$/.test(text2.trim())) {
+          batch.forEach(c => { contacts[c._idx].status = 'sent'; });
+          totalSent += batch.length;
+          totalFailed -= batch.length;
+          log.innerHTML += `<div style="color:var(--wa-deep)">✅ Batch ${batchNum}: ${batch.length} SMS sent! (alt)</div>`;
+        } else {
+          log.innerHTML += `<div style="color:#e74c3c">❌ Batch ${batchNum}: ${text2}</div>`;
+        }
+      } catch(err2) {
+        log.innerHTML += `<div style="color:#e74c3c">❌ Batch ${batchNum}: Network/CORS error — check API key</div>`;
+      }
     }
 
     const done = Math.min(i + batchSize, targets.length);
@@ -869,7 +914,7 @@ async function startBulkSMS(targets, msg) {
     ptext.textContent = `${done} / ${targets.length} process ho gaye`;
     log.scrollTop = log.scrollHeight;
     saveContacts();
-    if (i + batchSize < targets.length) await new Promise(r => setTimeout(r, 400));
+    if (i + batchSize < targets.length) await new Promise(r => setTimeout(r, 500));
   }
 
   btn.disabled = false;
